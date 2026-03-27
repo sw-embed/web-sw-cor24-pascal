@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Michael A Wright"]
 license = "MIT"
-description = "Browser-based Pascal Compiler IDE for COR24"
+description = "Browser-based Pascal Demos for COR24"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -21,8 +21,8 @@ pub fn app() -> Html {
     let demo = &DEMOS[*selected];
 
     html! {
-        <div id="ide">
-            <h1>{"Pascal IDE"}</h1>
+        <div id="app-root">
+            <h1>{"Pascal Demos"}</h1>
             <div class="toolbar">
                 <select onchange={on_select}>
                     { for DEMOS.iter().enumerate().map(|(i, d)| html! {
