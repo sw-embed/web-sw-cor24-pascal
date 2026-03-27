@@ -80,7 +80,8 @@ Edition 2024 for any Rust code. Never suppress warnings.
 
 ```bash
 trunk build                    # Build WASM to dist/
-trunk serve --port 9199        # Dev server
+./scripts/serve.sh             # Dev server (port 9918)
+./scripts/build-pages.sh       # Release build to pages/ for GitHub Pages
 cargo clippy --all-targets --all-features -- -D warnings  # Lint
 cargo fmt --all                # Format
 ```

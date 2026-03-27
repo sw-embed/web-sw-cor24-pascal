@@ -13,19 +13,12 @@ use yew::prelude::*;
 const BATCH_SIZE: u64 = 50_000;
 const TICK_MS: u32 = 25;
 
-/// P-code instruction size lookup (opcode byte → total size in bytes).
-fn pcode_instr_size(op: u8) -> u32 {
+fn pcode_instr_size(op: u8) -> usize {
     match op {
-        // IMM24 (4 bytes): push, jmp, jz, jnz, call, loadg, storeg, addrg
         0x01 | 0x30 | 0x31 | 0x32 | 0x33 | 0x54 | 0x55 | 0x56 => 4,
-        // IMM8 (2 bytes): push_s, ret, ret_v, trap, enter, loadl, storel,
-        //                  loada, storea, addrl, sys
         0x02 | 0x34 | 0x35 | 0x36 | 0x40 | 0x42 | 0x43 | 0x44 | 0x45 | 0x57 | 0x60 => 2,
-        // D8_O8 (3 bytes): loadn, storen
         0x58 | 0x59 => 3,
-        // D8_A24 (5 bytes): calln
         0x5A => 5,
-        // NONE (1 byte): everything else
         _ => 1,
     }
 }
@@ -82,31 +75,30 @@ impl App {
         let code_size = image.code.len() as u32;
         let total = code_size + image.data.len() as u32;
 
-        // Write code + data contiguously at load_addr
-        for (i, &b) in image.code.iter().chain(image.data.iter()).enumerate() {
-            self.emulator.write_byte(load_addr + i as u32, b);
-        }
-
-        // Relocate data references in push IMM24 instructions
-        let mut i: u32 = 0;
-        while i < code_size {
-            let op = self.emulator.read_byte(load_addr + i);
+        // Relocate data references: push IMM24 operands in [code_size, total)
+        // get load_addr added to become absolute addresses.
+        let mut code = image.code.clone();
+        let mut i = 0usize;
+        while i < code.len() {
+            let op = code[i];
             let size = pcode_instr_size(op);
-            if op == 0x01 && i + 4 <= code_size {
-                let lo = self.emulator.read_byte(load_addr + i + 1) as u32;
-                let mid = self.emulator.read_byte(load_addr + i + 2) as u32;
-                let hi = self.emulator.read_byte(load_addr + i + 3) as u32;
-                let val = lo | (mid << 8) | (hi << 16);
+            if op == 0x01 && i + 4 <= code.len() {
+                let val = u32::from(code[i + 1])
+                    | (u32::from(code[i + 2]) << 8)
+                    | (u32::from(code[i + 3]) << 16);
                 if val >= code_size && val < total {
                     let abs = val + load_addr;
-                    self.emulator.write_byte(load_addr + i + 1, abs as u8);
-                    self.emulator
-                        .write_byte(load_addr + i + 2, (abs >> 8) as u8);
-                    self.emulator
-                        .write_byte(load_addr + i + 3, (abs >> 16) as u8);
+                    code[i + 1] = abs as u8;
+                    code[i + 2] = (abs >> 8) as u8;
+                    code[i + 3] = (abs >> 16) as u8;
                 }
             }
             i += size;
+        }
+
+        // Write relocated code + data contiguously at load_addr
+        for (i, &b) in code.iter().chain(image.data.iter()).enumerate() {
+            self.emulator.write_byte(load_addr + i as u32, b);
         }
 
         self.binary_size = total as usize;

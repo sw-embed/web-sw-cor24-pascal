@@ -3,27 +3,25 @@
 .extern _p24p_write_int
 .extern _p24p_write_ln
 
-.global _g_i 1
-
-.proc main 0
-    ; i := 5
+.proc main 1
+    ; i := 5 (local 0)
     push 5
-    storeg _g_i
+    storel 0
 loop_test:
     ; while i > 0
-    loadg _g_i
+    loadl 0
     push 0
     gt
     jz loop_end
     ; writeln(i)
-    loadg _g_i
+    loadl 0
     call _p24p_write_int
     call _p24p_write_ln
     ; i := i - 1
-    loadg _g_i
+    loadl 0
     push 1
     sub
-    storeg _g_i
+    storel 0
     jmp loop_test
 loop_end:
     halt

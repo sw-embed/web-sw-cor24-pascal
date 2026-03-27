@@ -19,7 +19,7 @@ pub const RUNTIME_SPC: &str = include_str!("../../pr24p/src/runtime.spc");
 pub const DEMOS: &[Demo] = &[
     Demo {
         name: "Hello World",
-        description: "Print 42 and a newline",
+        description: "Print Hello, World! and a newline",
         pas_source: include_str!("../demos/hello.pas"),
         spc_source: include_str!("../demos/hello.spc"),
     },
