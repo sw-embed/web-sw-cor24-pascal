@@ -54,6 +54,37 @@ fn main() {
     std::fs::write(out_path.join("pvm_labels.rs"), labels_rs).unwrap();
     println!("cargo:rerun-if-changed=asm/pvm.s");
 
+    // Compile p24p Pascal compiler (C → COR24 assembly → binary) at build time.
+    // Uses tc24r CLI to compile p24p C sources, then assembles the output.
+    let p24p_src_dir = std::path::Path::new("../p24p/src");
+    let tc24r_include = "../../sw-vibe-coding/tc24r/include";
+    let tc24r_output = Command::new("tc24r")
+        .arg(p24p_src_dir.join("main.c"))
+        .arg("-I")
+        .arg(tc24r_include)
+        .output()
+        .expect("tc24r must be installed to compile p24p");
+    if !tc24r_output.status.success() {
+        let stderr = String::from_utf8_lossy(&tc24r_output.stderr);
+        panic!("tc24r compilation of p24p failed:\n{stderr}");
+    }
+    let p24p_asm = String::from_utf8(tc24r_output.stdout).expect("tc24r produced invalid UTF-8");
+
+    let mut p24p_assembler = cor24_emulator::Assembler::new();
+    let p24p_result = p24p_assembler.assemble(&p24p_asm);
+    if !p24p_result.errors.is_empty() {
+        for e in &p24p_result.errors {
+            eprintln!("p24p.s: {e}");
+        }
+        panic!("p24p assembly failed");
+    }
+    std::fs::write(out_path.join("p24p.bin"), &p24p_result.bytes).unwrap();
+    println!("cargo:rerun-if-changed=../p24p/src/main.c");
+    println!("cargo:rerun-if-changed=../p24p/src/parser.c");
+    println!("cargo:rerun-if-changed=../p24p/src/parser.h");
+    println!("cargo:rerun-if-changed=../p24p/src/lexer.c");
+    println!("cargo:rerun-if-changed=../p24p/src/lexer.h");
+
     // Short git SHA
     let sha = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])

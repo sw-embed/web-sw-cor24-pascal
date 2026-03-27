@@ -3,15 +3,16 @@ pub mod demos;
 
 use std::collections::VecDeque;
 
-use config::{PVM_BINARY, label_addr};
+use config::{P24P_BINARY, PVM_BINARY, label_addr};
 use cor24_emulator::EmulatorCore;
 use demos::{DEMOS, RUNTIME_SPC};
 use gloo::timers::callback::Timeout;
-use web_sys::{HtmlElement, HtmlInputElement, HtmlSelectElement};
+use web_sys::{HtmlElement, HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
 use yew::prelude::*;
 
 const BATCH_SIZE: u64 = 50_000;
 const TICK_MS: u32 = 25;
+const COMPILER_BATCH: u64 = 200_000;
 
 fn pcode_instr_size(op: u8) -> usize {
     match op {
@@ -26,23 +27,36 @@ fn pcode_instr_size(op: u8) -> usize {
 #[derive(Clone, Copy, PartialEq)]
 enum AppStatus {
     Ready,
+    Compiling,
+    Linking,
     Running,
     Exited,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum AppMode {
+    Demo,
+    Compile,
 }
 
 pub enum Msg {
     SelectDemo(usize),
     LinkAndRun,
+    CompileAndRun,
     Stop,
     Tick,
+    CompilerTick,
     ToggleSwitch,
     UpdateInput(String),
     SendInput,
     InputKeyDown(KeyboardEvent),
+    EditSource(String),
+    SwitchMode(AppMode),
 }
 
 pub struct App {
     selected: usize,
+    mode: AppMode,
     status: AppStatus,
     emulator: EmulatorCore,
     output: String,
@@ -60,6 +74,11 @@ pub struct App {
     vm_state_addr: u32,
     vm_loop_addr: u32,
     code_seg_addr: u32,
+    // Compile mode state
+    edit_source: String,
+    compiled_spc: String,
+    compiler_emu: Option<EmulatorCore>,
+    compiler_rx_queue: VecDeque<u8>,
 }
 
 impl App {
@@ -171,6 +190,13 @@ impl App {
         }));
     }
 
+    fn schedule_compiler_tick(&mut self, ctx: &Context<Self>) {
+        let link = ctx.link().clone();
+        self._tick_handle = Some(Timeout::new(TICK_MS, move || {
+            link.send_message(Msg::CompilerTick);
+        }));
+    }
+
     fn check_halted(&mut self, reason: cor24_emulator::StopReason) {
         match reason {
             cor24_emulator::StopReason::Halted
@@ -194,14 +220,12 @@ impl App {
         }
     }
 
-    fn link_and_assemble(&mut self) -> Result<pa24r::LoadedImage, String> {
-        let demo = &DEMOS[self.selected];
-
+    fn link_and_assemble_spc(&self, spc_source: &str) -> Result<pa24r::LoadedImage, String> {
         // Parse runtime and demo .spc modules
         let rt_module = pl24r::parser::parse(RUNTIME_SPC, "runtime.spc")
             .map_err(|e| format!("Parse runtime: {e}"))?;
-        let demo_module = pl24r::parser::parse(demo.spc_source, "demo.spc")
-            .map_err(|e| format!("Parse demo: {e}"))?;
+        let demo_module =
+            pl24r::parser::parse(spc_source, "demo.spc").map_err(|e| format!("Parse demo: {e}"))?;
 
         // Link: runtime first, then demo (which contains main)
         let linked = pl24r::linker::link(&[rt_module, demo_module]).map_err(|errs| {
@@ -223,6 +247,60 @@ impl App {
         // Load .p24 binary
         pa24r::load_p24(&p24_bytes).map_err(|e| format!("Load p24: {e:?}"))
     }
+
+    fn start_compiler(&mut self, source: &str, ctx: &Context<Self>) {
+        // Set up a fresh emulator with the p24p binary
+        let mut emu = EmulatorCore::new();
+        for (i, &b) in P24P_BINARY.iter().enumerate() {
+            emu.write_byte(i as u32, b);
+        }
+        emu.set_uart_tx_busy_cycles(0);
+        emu.resume();
+
+        // Queue the Pascal source bytes + EOT terminator
+        let mut rx_queue = VecDeque::new();
+        for b in source.bytes() {
+            rx_queue.push_back(b);
+        }
+        rx_queue.push_back(0x04); // EOT
+
+        self.compiler_emu = Some(emu);
+        self.compiler_rx_queue = rx_queue;
+        self.compiled_spc.clear();
+        self.status = AppStatus::Compiling;
+        self.schedule_compiler_tick(ctx);
+    }
+
+    fn finish_compilation(&mut self, ctx: &Context<Self>) -> bool {
+        // Check if compilation produced an error
+        if self.compiled_spc.contains("; COMPILE ERROR") || self.compiled_spc.contains("; ERROR:") {
+            self.output = format!("Compilation failed:\n{}", self.compiled_spc);
+            self.status = AppStatus::Exited;
+            self.compiler_emu = None;
+            return true;
+        }
+
+        // Now link and run the compiled .spc
+        self.status = AppStatus::Linking;
+        self.compiler_emu = None;
+
+        self.load_vm_binary();
+        match self.link_and_assemble_spc(&self.compiled_spc) {
+            Ok(image) => {
+                self.load_p24_image(&image);
+                self.apply_pending_code_base();
+                self.running = true;
+                self.status = AppStatus::Running;
+                self.emulator.resume();
+                self.schedule_tick(ctx);
+            }
+            Err(e) => {
+                self.output = format!("Link/assemble error: {e}");
+                self.status = AppStatus::Exited;
+            }
+        }
+        true
+    }
 }
 
 impl Component for App {
@@ -235,8 +313,11 @@ impl Component for App {
             emulator.write_byte(i as u32, b);
         }
 
+        let default_source = DEMOS.first().map_or("", |d| d.pas_source);
+
         Self {
             selected: 0,
+            mode: AppMode::Demo,
             status: AppStatus::Ready,
             emulator,
             output: String::new(),
@@ -254,29 +335,63 @@ impl Component for App {
             vm_state_addr: label_addr("vm_state"),
             vm_loop_addr: label_addr("vm_loop"),
             code_seg_addr: label_addr("code_seg"),
+            edit_source: default_source.to_string(),
+            compiled_spc: String::new(),
+            compiler_emu: None,
+            compiler_rx_queue: VecDeque::new(),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::SelectDemo(idx) => {
-                if idx < DEMOS.len() {
-                    self.selected = idx;
+            Msg::SwitchMode(new_mode) => {
+                if self.mode != new_mode {
+                    self.mode = new_mode;
                     // Stop any running execution
                     self.running = false;
                     self.halted = false;
                     self._tick_handle = None;
+                    self.compiler_emu = None;
                     self.output.clear();
+                    self.compiled_spc.clear();
                     self.instruction_count = 0;
                     self.binary_size = 0;
                     self.status = AppStatus::Ready;
-                    self.pending_code_base = None;
+                    if new_mode == AppMode::Compile {
+                        // Initialize editor with current demo source
+                        let demo = &DEMOS[self.selected];
+                        self.edit_source = demo.pas_source.to_string();
+                    }
                 }
                 true
             }
 
+            Msg::SelectDemo(idx) => {
+                if idx < DEMOS.len() {
+                    self.selected = idx;
+                    self.running = false;
+                    self.halted = false;
+                    self._tick_handle = None;
+                    self.compiler_emu = None;
+                    self.output.clear();
+                    self.compiled_spc.clear();
+                    self.instruction_count = 0;
+                    self.binary_size = 0;
+                    self.status = AppStatus::Ready;
+                    self.pending_code_base = None;
+                    if self.mode == AppMode::Compile {
+                        self.edit_source = DEMOS[idx].pas_source.to_string();
+                    }
+                }
+                true
+            }
+
+            Msg::EditSource(src) => {
+                self.edit_source = src;
+                false
+            }
+
             Msg::LinkAndRun => {
-                // Reset state
                 self.running = false;
                 self._tick_handle = None;
                 self.uart_rx_queue.clear();
@@ -285,15 +400,12 @@ impl Component for App {
                 self.halted = false;
                 self.led_on = false;
 
-                // Reload VM binary
                 self.load_vm_binary();
 
-                // Link and assemble
-                match self.link_and_assemble() {
+                let demo = &DEMOS[self.selected];
+                match self.link_and_assemble_spc(demo.spc_source) {
                     Ok(image) => {
                         self.load_p24_image(&image);
-
-                        // Apply and start running
                         self.apply_pending_code_base();
                         self.running = true;
                         self.status = AppStatus::Running;
@@ -308,9 +420,65 @@ impl Component for App {
                 true
             }
 
+            Msg::CompileAndRun => {
+                self.running = false;
+                self._tick_handle = None;
+                self.uart_rx_queue.clear();
+                self.output.clear();
+                self.compiled_spc.clear();
+                self.instruction_count = 0;
+                self.halted = false;
+                self.led_on = false;
+
+                let source = self.edit_source.clone();
+                self.start_compiler(&source, ctx);
+                true
+            }
+
+            Msg::CompilerTick => {
+                let Some(emu) = &mut self.compiler_emu else {
+                    return false;
+                };
+
+                // Feed source bytes to compiler UART (inlined to avoid borrow conflict)
+                while !self.compiler_rx_queue.is_empty() {
+                    let status = emu.read_byte(0xFF0101);
+                    if status & 0x01 != 0 {
+                        break;
+                    }
+                    if let Some(byte) = self.compiler_rx_queue.pop_front() {
+                        emu.send_uart_byte(byte);
+                    }
+                }
+
+                // Run compiler in batch
+                let result = emu.run_batch(COMPILER_BATCH);
+
+                // Collect .spc output from compiler UART
+                let uart_out = emu.get_uart_output().to_owned();
+                if !uart_out.is_empty() {
+                    self.compiled_spc.push_str(&uart_out);
+                    emu.clear_uart_output();
+                }
+
+                // Check if compiler halted
+                match result.reason {
+                    cor24_emulator::StopReason::Halted
+                    | cor24_emulator::StopReason::InvalidInstruction(_) => {
+                        return self.finish_compilation(ctx);
+                    }
+                    _ => {}
+                }
+
+                // Continue compiling
+                self.schedule_compiler_tick(ctx);
+                true
+            }
+
             Msg::Stop => {
                 self.running = false;
                 self._tick_handle = None;
+                self.compiler_emu = None;
                 self.emulator.pause();
                 self.status = AppStatus::Exited;
                 true
@@ -326,7 +494,6 @@ impl Component for App {
                 self.instruction_count += result.instructions_run;
                 self.collect_uart();
 
-                // Check LED state
                 let led_byte = self.emulator.read_byte(0xFF0200);
                 self.led_on = led_byte != 0;
 
@@ -389,14 +556,47 @@ impl Component for App {
 
         let on_keydown = link.callback(Msg::InputKeyDown);
 
+        let on_edit = link.callback(|e: InputEvent| {
+            let target: HtmlTextAreaElement = e.target_unchecked_into();
+            Msg::EditSource(target.value())
+        });
+
         let (status_text, status_class) = match self.status {
             AppStatus::Ready => ("Ready", "status status-ready"),
+            AppStatus::Compiling => ("Compiling", "status status-compiling"),
+            AppStatus::Linking => ("Linking", "status status-linking"),
             AppStatus::Running => ("Running", "status status-running"),
             AppStatus::Exited => ("Exited", "status status-exited"),
         };
 
-        let can_run = !self.running;
+        let is_busy = self.running
+            || self.status == AppStatus::Compiling
+            || self.status == AppStatus::Linking;
+        let can_run = !is_busy;
         let is_running = self.running;
+        let is_compile_mode = self.mode == AppMode::Compile;
+
+        // Pascal source panel content
+        let pascal_panel = if is_compile_mode {
+            html! {
+                <textarea class="code-editor"
+                    value={self.edit_source.clone()}
+                    oninput={on_edit}
+                    spellcheck="false"
+                    disabled={is_busy} />
+            }
+        } else {
+            html! {
+                <pre class="code-display">{ demo.pas_source }</pre>
+            }
+        };
+
+        // P-code panel content: show compiled output in compile mode
+        let spc_display = if is_compile_mode && !self.compiled_spc.is_empty() {
+            &self.compiled_spc
+        } else {
+            demo.spc_source
+        };
 
         html! {
             <>
@@ -413,11 +613,32 @@ impl Component for App {
                             </option>
                         })}
                     </select>
-                    if can_run {
-                        <button class="btn btn-run"
-                                onclick={link.callback(|_| Msg::LinkAndRun)}>
-                            {"Link & Run"}
+
+                    <div class="mode-tabs">
+                        <button class={classes!("btn", "btn-tab",
+                                (self.mode == AppMode::Demo).then_some("btn-tab-active"))}
+                                onclick={link.callback(|_| Msg::SwitchMode(AppMode::Demo))}>
+                            {"Demo"}
                         </button>
+                        <button class={classes!("btn", "btn-tab",
+                                (self.mode == AppMode::Compile).then_some("btn-tab-active"))}
+                                onclick={link.callback(|_| Msg::SwitchMode(AppMode::Compile))}>
+                            {"Compile"}
+                        </button>
+                    </div>
+
+                    if can_run {
+                        if is_compile_mode {
+                            <button class="btn btn-compile"
+                                    onclick={link.callback(|_| Msg::CompileAndRun)}>
+                                {"Compile & Run"}
+                            </button>
+                        } else {
+                            <button class="btn btn-run"
+                                    onclick={link.callback(|_| Msg::LinkAndRun)}>
+                                {"Link & Run"}
+                            </button>
+                        }
                     } else {
                         <button class="btn btn-stop"
                                 onclick={link.callback(|_| Msg::Stop)}>
@@ -430,9 +651,11 @@ impl Component for App {
                 <div class="grid">
                     // Top-left: Pascal Source
                     <div class="panel panel-tl">
-                        <div class="panel-header">{"Pascal Source"}</div>
+                        <div class="panel-header">
+                            { if is_compile_mode { "Pascal Source (editable)" } else { "Pascal Source" } }
+                        </div>
                         <div class="panel-body">
-                            <pre class="code-display">{ demo.pas_source }</pre>
+                            { pascal_panel }
                         </div>
                     </div>
 
@@ -440,7 +663,7 @@ impl Component for App {
                     <div class="panel panel-tr">
                         <div class="panel-header">{"P-Code Assembly (.spc)"}</div>
                         <div class="panel-body">
-                            <pre class="code-display">{ demo.spc_source }</pre>
+                            <pre class="code-display">{ spc_display }</pre>
                         </div>
                     </div>
 
@@ -498,7 +721,7 @@ impl Component for App {
                                         { if self.binary_size > 0 {
                                             format!("{} bytes", self.binary_size)
                                         } else {
-                                            "—".into()
+                                            "\u{2014}".into()
                                         }}
                                     </span>
                                 </div>
@@ -516,7 +739,7 @@ impl Component for App {
                 <footer>
                     <span>{"MIT License"}</span>
                     <span class="sep">{"|"}</span>
-                    <span>{"© 2026 Michael A Wright"}</span>
+                    <span>{"\u{00a9} 2026 Michael A Wright"}</span>
                     <span class="sep">{"|"}</span>
                     <span>{"COR24-P24C"}</span>
                 </footer>
