@@ -6,9 +6,14 @@ Browser-based Pascal demo runner for the [pv24a](https://github.com/softwarewrig
 
 ## Overview
 
-web-p24c displays Pascal source and pre-compiled p-code assembly side by side. Click "Link & Run" to link ([pl24r](https://github.com/softwarewrighter/pl24r)), assemble ([pa24r](https://github.com/softwarewrighter/pa24r)), and execute on the COR24 emulator -- all in the browser, no server-side compilation.
+web-p24c displays Pascal source and pre-compiled p-code assembly side by side. Two modes:
 
-Demos include Hello World (string output via `_p24p_write_str`) and Countdown (loop with global variable).
+- **Demo mode**: Select a pre-compiled demo and click "Link & Run" to link, assemble, and execute instantly.
+- **Edit mode**: Write or modify Pascal source in an editable text area, then click "Compile & Run" to compile via the [p24p](https://github.com/softwarewrighter/p24p) Pascal compiler running inside a COR24 emulator, link with the runtime, assemble, and execute -- all in the browser.
+
+Linking uses [pl24r](https://github.com/softwarewrighter/pl24r), assembly uses [pa24r](https://github.com/softwarewrighter/pa24r), and execution runs on the COR24 emulator via WASM. No server-side compilation.
+
+Demos include Hello World (string output) and Countdown (loop with variable).
 
 Built with Rust, Yew 0.21, and Trunk. Runs entirely in the browser as a WASM application.
 

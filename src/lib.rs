@@ -623,7 +623,7 @@ impl Component for App {
                         <button class={classes!("btn", "btn-tab",
                                 (self.mode == AppMode::Compile).then_some("btn-tab-active"))}
                                 onclick={link.callback(|_| Msg::SwitchMode(AppMode::Compile))}>
-                            {"Compile"}
+                            {"Edit"}
                         </button>
                     </div>
 
