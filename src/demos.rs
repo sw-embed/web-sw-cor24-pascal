@@ -53,4 +53,34 @@ pub const DEMOS: &[Demo] = &[
         pas_source: include_str!("../demos/forloop.pas"),
         spc_source: include_str!("../demos/forloop.spc"),
     },
+    Demo {
+        name: "Factorial",
+        description: "Compute 10! = 3628800",
+        pas_source: include_str!("../demos/factorial.pas"),
+        spc_source: include_str!("../demos/factorial.spc"),
+    },
+    Demo {
+        name: "Even/Odd",
+        description: "Print 1..10 with sign by parity",
+        pas_source: include_str!("../demos/evenodd.pas"),
+        spc_source: include_str!("../demos/evenodd.spc"),
+    },
+    Demo {
+        name: "Powers of 2",
+        description: "2^1 through 2^12",
+        pas_source: include_str!("../demos/powers.pas"),
+        spc_source: include_str!("../demos/powers.spc"),
+    },
+    Demo {
+        name: "Write",
+        description: "write() without newline, for loop",
+        pas_source: include_str!("../demos/write.pas"),
+        spc_source: include_str!("../demos/write.spc"),
+    },
+    Demo {
+        name: "Std Library",
+        description: "Abs, Sqr, Succ, Pred, Odd",
+        pas_source: include_str!("../demos/stdlib.pas"),
+        spc_source: include_str!("../demos/stdlib.spc"),
+    },
 ];
