@@ -12,7 +12,7 @@
 ; UART: data at -65280 (0xFF0100), status at -65279 (0xFF0101)
 ;   TX busy = status bit 7 (sign bit via lb sign-extend)
 ;   RX ready = status bit 0
-; LED: port at -65024 (0xFF0200)
+; LED/Switch: port at -65536 (0xFF0000), write bit 0 = LED D2, read bit 0 = button S2
 ;
 ; COR24 ISA notes:
 ;   lbu = load byte zero-extend, lb = load byte sign-extend
@@ -57,8 +57,9 @@ _start:
     la r0, heap_seg
     sw r0, 15(fp)
 
-    ; code = code segment base
-    la r0, code_seg
+    ; code = indirect via code_ptr (patchable for external .p24 loading)
+    la r0, code_ptr
+    lw r0, 0(r0)
     sw r0, 18(fp)
 
     ; status = 0 (running)
@@ -1643,6 +1644,17 @@ op_sys:
     lc r2, 5
     ceq r0, r2
     brt sys_free_j
+    ; Reload sys id
+    push fp
+    la r0, sys_id_temp
+    push r0
+    pop fp
+    lw r0, 0(fp)
+    pop fp
+    ; id == 6 (READ_SWITCH)?
+    lc r2, 6
+    ceq r0, r2
+    brt sys_rdswitch_j
     ; Unknown sys id — trap
     la r0, op_invalid
     jmp (r0)
@@ -1653,6 +1665,9 @@ sys_alloc_j:
     jmp (r0)
 sys_free_j:
     la r0, sys_free
+    jmp (r0)
+sys_rdswitch_j:
+    la r0, sys_read_switch
     jmp (r0)
 
 ; sys HALT (id=0): stop VM execution
@@ -1717,9 +1732,30 @@ sys_led:
     sw r2, 3(fp)
     ; r2 = new esp = &TOS
     lw r0, 0(r2)
-    ; r0 = LED state
+    ; r0 = LED state (1=on, 0=off from caller)
+    ; Hardware is active-low: invert bit 0 before writing
+    lc r2, 1
+    xor r0, r2
     la r2, -65536
     sb r0, 0(r2)
+    la r0, vm_loop
+    jmp (r0)
+
+; sys READ_SWITCH (id=6): read switch state, push onto eval stack
+sys_read_switch:
+    la r0, vm_state
+    push r0
+    pop fp
+    ; Read switch register (bit 0 = button S2)
+    la r2, -65536
+    lbu r0, 0(r2)
+    lc r2, 1
+    and r0, r2
+    ; Push result onto eval stack
+    lw r2, 3(fp)
+    sw r0, 0(r2)
+    add r2, 3
+    sw r2, 3(fp)
     la r0, vm_loop
     jmp (r0)
 
@@ -2020,6 +2056,13 @@ vm_state:
 ; 14: sys 0          96, 0         ; HALT (should not reach here)
 ;
 ; Other trap tests (change bytecode to test each):
+; code_ptr — indirection for code segment base address.
+; Default: points to built-in code_seg.
+; For external .p24: patch this word to the load address (e.g., 0x010000)
+; using --load-binary or --patch before execution starts.
+code_ptr:
+    .word code_seg
+
 ;   DIV_ZERO:       push_s 1, push_s 0, div  → TRAP 1
 ;   STACK_OVERFLOW: (fill stack past limit)   → TRAP 2
 ;   STACK_UNDERFLOW: drop (on empty stack)    → TRAP 3
