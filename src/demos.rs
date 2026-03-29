@@ -36,6 +36,12 @@ pub const DEMOS: &[Demo] = &[
         spc_source: include_str!("../demos/countdown.spc"),
     },
     Demo {
+        name: "Echo",
+        description: "Read a number and echo it back",
+        pas_source: include_str!("../demos/echo.pas"),
+        spc_source: include_str!("../demos/echo.spc"),
+    },
+    Demo {
         name: "Even/Odd",
         description: "Print 1..10 with sign by parity",
         pas_source: include_str!("../demos/evenodd.pas"),

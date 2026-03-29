@@ -55,6 +55,8 @@ pub enum Msg {
     ConfirmDiscard,
     CancelDiscard,
     DialogKeyDown(KeyboardEvent),
+    ShowAbout,
+    HideAbout,
 }
 
 pub struct App {
@@ -88,6 +90,8 @@ pub struct App {
     // Discard confirmation
     show_discard_dialog: bool,
     source_dirty: bool,
+    // About dialog
+    show_about: bool,
 }
 
 impl App {
@@ -326,10 +330,14 @@ impl Component for App {
             emulator.write_byte(i as u32, b);
         }
 
-        let default_source = DEMOS.first().map_or("", |d| d.pas_source);
+        let default_idx = DEMOS
+            .iter()
+            .position(|d| d.name == "Hello World")
+            .unwrap_or(0);
+        let default_source = DEMOS[default_idx].pas_source;
 
         Self {
-            selected: 0,
+            selected: default_idx,
             mode: AppMode::Demo,
             status: AppStatus::Ready,
             emulator,
@@ -356,6 +364,7 @@ impl Component for App {
             compile_time_ms: 0.0,
             show_discard_dialog: false,
             source_dirty: false,
+            show_about: false,
         }
     }
 
@@ -418,9 +427,20 @@ impl Component for App {
             Msg::DialogKeyDown(e) => {
                 if e.key() == "Escape" {
                     self.show_discard_dialog = false;
+                    self.show_about = false;
                     return true;
                 }
                 false
+            }
+
+            Msg::ShowAbout => {
+                self.show_about = true;
+                true
+            }
+
+            Msg::HideAbout => {
+                self.show_about = false;
+                true
             }
 
             Msg::SelectDemo(idx) => {
@@ -683,6 +703,10 @@ impl Component for App {
                 <header>
                     <h1>{"Pascal Demos"}</h1>
                     <span class="subtitle">{"COR24 P-Code VM"}</span>
+                    <button class="btn btn-about"
+                            onclick={link.callback(|_| Msg::ShowAbout)}>
+                        {"About"}
+                    </button>
                 </header>
 
                 <div class="toolbar">
@@ -729,7 +753,7 @@ impl Component for App {
                 </div>
 
                 <div class="grid">
-                    // Top-left: Pascal Source
+                    // Left: Pascal Source
                     <div class="panel panel-tl">
                         <div class="panel-header">
                             { if is_compile_mode { "Pascal Source (editable)" } else { "Pascal Source" } }
@@ -739,7 +763,7 @@ impl Component for App {
                         </div>
                     </div>
 
-                    // Top-right: P-Code Assembly
+                    // Right: P-Code Assembly
                     <div class="panel panel-tr">
                         <div class="panel-header">{"P-Code Assembly (.spc)"}</div>
                         <div class="panel-body">
@@ -747,78 +771,67 @@ impl Component for App {
                         </div>
                     </div>
 
-                    // Bottom-left: Output
-                    <div class="panel panel-bl">
-                        <div class="panel-header">{"Output"}</div>
-                        <div class="panel-body">
-                            <div class="output-text" ref={self.output_ref.clone()}>
-                                { &self.output }
+                    // Bottom: Hardware Emulator
+                    <div class="panel panel-hw">
+                        <div class="hw-bar">
+                            <span class="hw-bar-title">{"Hardware Emulator"}</span>
+                            <div class="hw-indicator">
+                                <span class="hw-indicator-label">{"S1 Power"}</span>
+                                <span class="led-large led-power"></span>
+                            </div>
+                            <div class="hw-indicator">
+                                <span class="hw-indicator-label">{"S2 User Switch"}</span>
+                                <button class={classes!("switch-btn-large",
+                                    self.switch_on.then_some("switch-on-large"))}
+                                    onclick={link.callback(|_| Msg::ToggleSwitch)}>
+                                    { if self.switch_on { "ON" } else { "OFF" } }
+                                </button>
+                            </div>
+                            <div class="hw-indicator">
+                                <span class="hw-indicator-label">{"D2 User LED"}</span>
+                                <span class={classes!("led-large", "led-user",
+                                    self.led_on.then_some("led-user-on"))}></span>
+                            </div>
+                            <div class="hw-stats">
+                                <span class="hw-stat">
+                                    { if self.binary_size > 0 {
+                                        format!("{} bytes", self.binary_size)
+                                    } else {
+                                        "\u{2014}".into()
+                                    }}
+                                </span>
+                                <span class="hw-stat">
+                                    { format!("{} instrs", self.instruction_count) }
+                                </span>
+                                if self.compile_time_ms > 0.0 {
+                                    <span class="hw-stat">
+                                        { format!("{:.0} ms compile", self.compile_time_ms) }
+                                    </span>
+                                }
                             </div>
                         </div>
-                        <div class="uart-input">
-                            <input class="uart-field" type="text"
-                                   placeholder="UART input..."
-                                   value={self.uart_input.clone()}
-                                   oninput={on_input}
-                                   onkeydown={on_keydown}
-                                   disabled={!is_running} />
-                            <button class="btn btn-send"
-                                    onclick={link.callback(|_| Msg::SendInput)}
-                                    disabled={!is_running}>
-                                {"Send"}
-                            </button>
-                        </div>
-                    </div>
-
-                    // Bottom-right: Hardware
-                    <div class="panel panel-br">
-                        <div class="panel-header">{"Hardware"}</div>
-                        <div class="panel-body">
-                            <div class="hw-section">
-                                <div class="hw-row">
-                                    <span>{"LED D2:"}</span>
-                                    <span class={classes!("led-indicator",
-                                        self.led_on.then_some("led-on"))}></span>
-                                    <span class="hw-stat">
-                                        { if self.led_on { "on" } else { "off" } }
-                                    </span>
+                        <div class="hw-io">
+                            <div class="hw-uart-output">
+                                <span class="hw-io-label">{"UART Output"}</span>
+                                <div class="output-text" ref={self.output_ref.clone()}>
+                                    { &self.output }
                                 </div>
                             </div>
-                            <div class="hw-section">
-                                <div class="hw-row">
-                                    <span>{"Switch S2:"}</span>
-                                    <button class={classes!("switch-btn",
-                                        self.switch_on.then_some("switch-on"))}
-                                        onclick={link.callback(|_| Msg::ToggleSwitch)}>
-                                        { if self.switch_on { "ON" } else { "OFF" } }
+                            <div class="hw-uart-input">
+                                <span class="hw-io-label">{"UART Input"}</span>
+                                <div class="uart-input-row">
+                                    <input class="uart-field" type="text"
+                                           placeholder="Type here, press Enter or Send..."
+                                           value={self.uart_input.clone()}
+                                           oninput={on_input}
+                                           onkeydown={on_keydown}
+                                           disabled={!is_running} />
+                                    <button class="btn btn-send"
+                                            onclick={link.callback(|_| Msg::SendInput)}
+                                            disabled={!is_running}>
+                                        {"Send"}
                                     </button>
                                 </div>
-                            </div>
-                            <div class="hw-section">
-                                <div class="hw-row">
-                                    <span class="hw-stat">{"Binary: "}</span>
-                                    <span class="hw-stat-val">
-                                        { if self.binary_size > 0 {
-                                            format!("{} bytes", self.binary_size)
-                                        } else {
-                                            "\u{2014}".into()
-                                        }}
-                                    </span>
-                                </div>
-                                <div class="hw-row">
-                                    <span class="hw-stat">{"Instructions: "}</span>
-                                    <span class="hw-stat-val">
-                                        { self.instruction_count.to_string() }
-                                    </span>
-                                </div>
-                                if self.compile_time_ms > 0.0 {
-                                    <div class="hw-row">
-                                        <span class="hw-stat">{"Compile: "}</span>
-                                        <span class="hw-stat-val">
-                                            { format!("{:.0} ms", self.compile_time_ms) }
-                                        </span>
-                                    </div>
-                                }
                             </div>
                         </div>
                     </div>
@@ -845,6 +858,63 @@ impl Component for App {
                                         onclick={link.callback(|_| Msg::ConfirmDiscard)}>
                                     {"Discard"}
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                if self.show_about {
+                    <div class="dialog-overlay"
+                         onclick={link.callback(|_| Msg::HideAbout)}
+                         onkeydown={link.callback(Msg::DialogKeyDown)}
+                         tabindex="-1">
+                        <div class="about-box"
+                             onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}
+                        >
+                            <div class="about-header">
+                                <span class="about-title">{"Pascal Demos — COR24 P-Code VM"}</span>
+                                <button class="btn about-close"
+                                        onclick={link.callback(|_| Msg::HideAbout)}>
+                                    {"\u{00d7}"}
+                                </button>
+                            </div>
+                            <div class="about-body">
+                                <div class="about-section">
+                                    <h3>{"Emulator"}</h3>
+                                    <p>{"cor24-rs is a cycle-accurate emulator for the COR24, \
+                                        a 24-bit RISC CPU. It runs in WebAssembly in this browser \
+                                        page, or natively at the CLI via cor24-run. The COR24 also \
+                                        runs on the COR24-TB development board."}</p>
+                                </div>
+                                <div class="about-section">
+                                    <h3>{"Pascal Compiler (p24p)"}</h3>
+                                    <p>{"A Pascal compiler written in C, compiled to COR24 \
+                                        assembly by the tc24r C compiler, and executed on the \
+                                        emulator. In Edit mode, your Pascal source is fed to p24p \
+                                        via the emulated UART. The compiler produces p-code \
+                                        assembly (.spc)."}</p>
+                                </div>
+                                <div class="about-section">
+                                    <h3>{"Linker & Assembler"}</h3>
+                                    <p>{"pl24r links p-code modules (your program + the Pascal \
+                                        runtime library). pa24r assembles the linked p-code into \
+                                        a binary (.p24). Both are Rust libraries running in WASM."}</p>
+                                </div>
+                                <div class="about-section">
+                                    <h3>{"P-Code VM (pvm.s)"}</h3>
+                                    <p>{"A stack-based virtual machine written in COR24 assembly. \
+                                        It interprets the p-code binary, running on the emulator. \
+                                        I/O goes through the emulated UART (text) and GPIO \
+                                        (LED D2, switch S2)."}</p>
+                                </div>
+                                <div class="about-section">
+                                    <h3>{"Demo & Edit Modes"}</h3>
+                                    <p>{"Demo mode runs pre-compiled p-code instantly via \
+                                        Link & Run. Edit mode lets you write Pascal, then \
+                                        Compile & Run invokes the full pipeline: compile \
+                                        (p24p on emulator) \u{2192} link (pl24r) \u{2192} assemble \
+                                        (pa24r) \u{2192} execute (pvm.s on emulator)."}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
