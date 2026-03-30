@@ -11,7 +11,7 @@ echo "=== Building pages/ ==="
 cd "$PROJECT_DIR"
 mkdir -p pages
 touch pages/.nojekyll
-trunk build --release --public-url /web-p24c/
+trunk build --release --public-url /web-sw-cor24-pascal/
 rsync -a --delete --exclude='.nojekyll' dist/ pages/
 
 echo "=== Done ==="

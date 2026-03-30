@@ -1,9 +1,0 @@
-number = 1
-slug = "scaffold-yew-trunk"
-status = "completed"
-description = "Scaffold the Yew/Trunk/WASM project. Study web-dv24r's Cargo.toml, build.rs, ..."
-role = "legacy"
-context_files = []
-created_at = "2026-03-26T16:15:24"
-completed_at = "2026-03-26T17:55:16"
-task_type = "rust-project-init"

@@ -686,7 +686,7 @@ impl Component for App {
         html! {
             <>
                 // GitHub corner
-                <a href="https://github.com/softwarewrighter/web-p24c" class="github-corner"
+                <a href="https://github.com/sw-embed/web-sw-cor24-pascal" class="github-corner"
                    aria-label="View source on GitHub" target="_blank">
                     <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
                         <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" />
@@ -931,7 +931,7 @@ impl Component for App {
                     <span class="sep">{"|"}</span>
                     <span>{"\u{00a9} 2026 Michael A Wright"}</span>
                     <span class="sep">{"|"}</span>
-                    <a href="https://github.com/softwarewrighter/web-p24c/blob/main/README.md"
+                    <a href="https://github.com/sw-embed/web-sw-cor24-pascal/blob/main/README.md"
                        target="_blank">{"Docs"}</a>
                     <span class="sep">{"|"}</span>
                     <span>{env!("BUILD_SHA")}</span>

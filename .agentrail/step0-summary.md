@@ -1,1 +1,0 @@
-Project initialized with saga, CLAUDE.md, and design docs

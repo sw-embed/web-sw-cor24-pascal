@@ -1,8 +1,0 @@
-number = 2
-slug = "002-demo-registry"
-status = "completed"
-description = 'Build the demo registry: embed .pas + .spc pairs via include_str\!(). Study w...'
-role = "legacy"
-context_files = []
-created_at = "2026-03-26T17:55:16"
-completed_at = "2026-03-26T18:18:07"

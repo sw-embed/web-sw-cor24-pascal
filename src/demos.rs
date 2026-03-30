@@ -13,7 +13,7 @@ pub struct Demo {
 }
 
 /// Runtime library .spc source (linked with every demo).
-pub const RUNTIME_SPC: &str = include_str!("../../pr24p/src/runtime.spc");
+pub const RUNTIME_SPC: &str = include_str!("../../sw-cor24-pascal/runtime/runtime.spc");
 
 /// Available demo programs (alphabetical order).
 pub const DEMOS: &[Demo] = &[

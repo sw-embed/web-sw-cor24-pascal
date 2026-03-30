@@ -1,9 +1,0 @@
-run agentrail --help
-and look at how agenrail is used in these related projects
-~/github/softwarewrighter/web-dv24r
-~/github/sw-vibe-coding/pv24a
-especially their CLAUDE.md file.
-Then read this project's docs/research.txt to create the agentrail saga.
-This project builds on top of p24c
-This project is similar to ~/github/sw-vibe-coding/web-* projects. 
-After reading docs, ask me if you have any questions before you create the saga.

@@ -1,8 +1,0 @@
-number = 4
-slug = "004-link-and-run"
-status = "completed"
-description = "Phase 4: Link & Run pipeline. Study web-dv24r's execution model for pattern r..."
-role = "production"
-context_files = []
-created_at = "2026-03-26T19:16:10"
-completed_at = "2026-03-26T19:58:58"

@@ -56,7 +56,7 @@ fn main() {
 
     // Compile p24p Pascal compiler (C → COR24 assembly → binary) at build time.
     // Uses tc24r CLI to compile p24p C sources, then assembles the output.
-    let p24p_src_dir = std::path::Path::new("../p24p/src");
+    let p24p_src_dir = std::path::Path::new("../sw-cor24-pascal/compiler/src");
     let tc24r_include = "../../sw-vibe-coding/tc24r/include";
     let tc24r_output = Command::new("tc24r")
         .arg(p24p_src_dir.join("main.c"))
@@ -79,11 +79,11 @@ fn main() {
         panic!("p24p assembly failed");
     }
     std::fs::write(out_path.join("p24p.bin"), &p24p_result.bytes).unwrap();
-    println!("cargo:rerun-if-changed=../p24p/src/main.c");
-    println!("cargo:rerun-if-changed=../p24p/src/parser.c");
-    println!("cargo:rerun-if-changed=../p24p/src/parser.h");
-    println!("cargo:rerun-if-changed=../p24p/src/lexer.c");
-    println!("cargo:rerun-if-changed=../p24p/src/lexer.h");
+    println!("cargo:rerun-if-changed=../sw-cor24-pascal/compiler/src/main.c");
+    println!("cargo:rerun-if-changed=../sw-cor24-pascal/compiler/src/parser.c");
+    println!("cargo:rerun-if-changed=../sw-cor24-pascal/compiler/src/parser.h");
+    println!("cargo:rerun-if-changed=../sw-cor24-pascal/compiler/src/lexer.c");
+    println!("cargo:rerun-if-changed=../sw-cor24-pascal/compiler/src/lexer.h");
 
     // Short git SHA
     let sha = Command::new("git")
