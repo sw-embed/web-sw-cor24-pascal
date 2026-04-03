@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pascal Demos — COR24</title>
+    <link rel="icon" href="/web-sw-cor24-pascal/favicon-8880d906764adf10.ico" integrity="sha384-TjGnxzcKuaOzggc2R3zvLtVUSD3hhm66neSmx+da6UB7B//h2m9Bz3Tns7O/5vG2"/>
+    
+<script type="module">
+import init, * as bindings from '/web-sw-cor24-pascal/web-sw-cor24-pascal-576db9c56338af77.js';
+const wasm = await init({ module_or_path: '/web-sw-cor24-pascal/web-sw-cor24-pascal-576db9c56338af77_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+    <link rel="stylesheet" href="/web-sw-cor24-pascal/app-809b8a7d50fa7ae3.css" integrity="sha384-wHBxr6GKaYJFJZFdV4dK2vcjrP6xM7+4D+8txcr/Es1rHhft8UYxOVv7zMuHgJtb"/>
+    <style>
+        /* Catppuccin Mocha */
+        :root {
+            --crust: #11111b;
+            --mantle: #181825;
+            --base: #1e1e2e;
+            --surface0: #313244;
+            --surface1: #45475a;
+            --surface2: #585b70;
+            --overlay0: #6c7086;
+            --overlay1: #7f849c;
+            --overlay2: #9399b2;
+            --subtext0: #a6adc8;
+            --subtext1: #bac2de;
+            --text: #cdd6f4;
+            --lavender: #b4befe;
+            --blue: #89b4fa;
+            --sapphire: #74c7ec;
+            --sky: #89dceb;
+            --teal: #94e2d5;
+            --green: #a6e3a1;
+            --yellow: #f9e2af;
+            --peach: #fab387;
+            --maroon: #eba0ac;
+            --red: #f38ba8;
+            --mauve: #cba6f7;
+            --pink: #f5c2e7;
+            --flamingo: #f2cdcd;
+            --rosewater: #f5e0dc;
+            --mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--mono);
+            font-size: 15px;
+            background: var(--base);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #app {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .github-corner {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 100;
+        }
+        .github-corner svg {
+            fill: var(--blue);
+            color: var(--base);
+        }
+        .github-corner:hover .octo-arm {
+            animation: octocat-wave 560ms ease-in-out;
+        }
+        @keyframes octocat-wave {
+            0%, 100% { transform: rotate(0); }
+            20%, 60% { transform: rotate(-25deg); }
+            40%, 80% { transform: rotate(10deg); }
+        }
+    </style>
+<link rel="modulepreload" href="/web-sw-cor24-pascal/web-sw-cor24-pascal-576db9c56338af77.js" crossorigin="anonymous" integrity="sha384-bE57Li/DaTEZ3YwBLbhmYPiAmX1XQoBOkSu9Le+xnZY30Y16bzqnF8bvgjedlFGe"><link rel="preload" href="/web-sw-cor24-pascal/web-sw-cor24-pascal-576db9c56338af77_bg.wasm" crossorigin="anonymous" integrity="sha384-H8zg6oic+JkwYyOubz44r/ASmTRkcR9+874DefHgkcFvPJxJydRj5+14PLD8TAGI" as="fetch" type="application/wasm"></head>
+<body>
+    <div id="app"></div>
+</body>
+</html>
