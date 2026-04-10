@@ -934,6 +934,12 @@ impl Component for App {
                     <a href="https://github.com/sw-embed/web-sw-cor24-pascal/blob/main/README.md"
                        target="_blank">{"Docs"}</a>
                     <span class="sep">{"|"}</span>
+                    <a href="https://software-wrighter-lab.github.io/" target="_blank">{"Blog"}</a>
+                    <span class="sep">{"|"}</span>
+                    <a href="https://discord.com/invite/Ctzk5uHggZ" target="_blank">{"Discord"}</a>
+                    <span class="sep">{"|"}</span>
+                    <a href="https://www.youtube.com/@SoftwareWrighter" target="_blank">{"YouTube"}</a>
+                    <span class="sep">{"|"}</span>
                     <span>{env!("BUILD_SHA")}</span>
                 </footer>
             </>

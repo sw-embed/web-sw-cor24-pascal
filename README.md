@@ -4,6 +4,8 @@ Browser-based Pascal demo runner for the [sw-cor24-pcode](https://github.com/sw-
 
 **[Live Demo](https://sw-embed.github.io/web-sw-cor24-pascal/)**
 
+Part of the [Software Wrighter COR24 Tools Project](https://sw-embed.github.io/web-sw-cor24-demos/#/).
+
 ## Overview
 
 web-sw-cor24-pascal displays Pascal source and pre-compiled p-code assembly side by side. Two modes:
@@ -32,8 +34,16 @@ trunk build                    # Build WASM to dist/
 - [sw-cor24-emulator](https://github.com/sw-embed/sw-cor24-emulator) -- COR24 assembler and emulator
 - [web-sw-cor24-pcode](https://github.com/sw-embed/web-sw-cor24-pcode) -- P-code debugger (browser)
 
+## Links
+
+- Blog: [Software Wrighter Lab](https://software-wrighter-lab.github.io/)
+- Discord: [Join the community](https://discord.com/invite/Ctzk5uHggZ)
+- YouTube: [Software Wrighter](https://www.youtube.com/@SoftwareWrighter)
+
+## Copyright
+
+Copyright (c) 2026 Michael A. Wright
+
 ## License
 
 MIT License -- see [LICENSE](LICENSE) for details.
-
-Copyright (c) 2026 Michael A. Wright
