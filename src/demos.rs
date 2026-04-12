@@ -18,10 +18,22 @@ pub const RUNTIME_SPC: &str = include_str!("../../sw-cor24-pascal/runtime/runtim
 /// Available demo programs (alphabetical order).
 pub const DEMOS: &[Demo] = &[
     Demo {
+        name: "Binary Search Tree",
+        description: "BST insert & in-order traversal (pointers, records, recursion)",
+        pas_source: include_str!("../demos/bst.pas"),
+        spc_source: include_str!("../demos/bst.spc"),
+    },
+    Demo {
         name: "Button LED",
         description: "Press S2 switch to light LED D2",
         pas_source: include_str!("../demos/button_led.pas"),
         spc_source: include_str!("../demos/button_led.spc"),
+    },
+    Demo {
+        name: "Case Statement",
+        description: "Days of the week via case (case..of)",
+        pas_source: include_str!("../demos/case_stmt.pas"),
+        spc_source: include_str!("../demos/case_stmt.spc"),
     },
     Demo {
         name: "Collatz",
@@ -48,6 +60,12 @@ pub const DEMOS: &[Demo] = &[
         spc_source: include_str!("../demos/evenodd.spc"),
     },
     Demo {
+        name: "Exit Search",
+        description: "Linked-list search with early exit",
+        pas_source: include_str!("../demos/exit_search.pas"),
+        spc_source: include_str!("../demos/exit_search.spc"),
+    },
+    Demo {
         name: "Factorial",
         description: "Compute 10! = 3628800",
         pas_source: include_str!("../demos/factorial.pas"),
@@ -66,6 +84,12 @@ pub const DEMOS: &[Demo] = &[
         spc_source: include_str!("../demos/forloop.spc"),
     },
     Demo {
+        name: "Forward Decl",
+        description: "Mutual recursion via forward declarations",
+        pas_source: include_str!("../demos/forward_decl.pas"),
+        spc_source: include_str!("../demos/forward_decl.spc"),
+    },
+    Demo {
         name: "Hello World",
         description: "Print Hello, World! and a newline",
         pas_source: include_str!("../demos/hello.pas"),
@@ -78,6 +102,18 @@ pub const DEMOS: &[Demo] = &[
         spc_source: include_str!("../demos/led_on.spc"),
     },
     Demo {
+        name: "Linked List",
+        description: "Build, traverse, and dispose a linked list (pointers)",
+        pas_source: include_str!("../demos/linked_list.pas"),
+        spc_source: include_str!("../demos/linked_list.spc"),
+    },
+    Demo {
+        name: "Nested Procs",
+        description: "Nested procedures with lexical scoping",
+        pas_source: include_str!("../demos/nested_procs.pas"),
+        spc_source: include_str!("../demos/nested_procs.spc"),
+    },
+    Demo {
         name: "Powers of 2",
         description: "2^1 through 2^12",
         pas_source: include_str!("../demos/powers.pas"),
@@ -88,6 +124,12 @@ pub const DEMOS: &[Demo] = &[
         description: "Prime numbers up to 20",
         pas_source: include_str!("../demos/primes.pas"),
         spc_source: include_str!("../demos/primes.spc"),
+    },
+    Demo {
+        name: "Repeat Until",
+        description: "Countdown with repeat..until loop",
+        pas_source: include_str!("../demos/repeat_until.pas"),
+        spc_source: include_str!("../demos/repeat_until.spc"),
     },
     Demo {
         name: "Std Library",

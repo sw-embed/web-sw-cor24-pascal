@@ -1,4 +1,4 @@
-.module buttonled
+.module repeattest
 .extern _p24p_write_int
 .extern _p24p_write_bool
 .extern _p24p_write_str
@@ -24,44 +24,34 @@
 .extern _p24p_poke
 .extern _p24p_memcpy
 .extern _p24p_memset
-.extern _p24p_led_on
-.extern _p24p_led_off
-.extern _p24p_read_switch
 .export main
-; p24p output: buttonled
-.global on 1
+; p24p output: repeattest
+.global n 1
 
 .proc main 0
     enter 0
     call _p24p_io_init
     call _p24p_heap_init
-    push 0
-    storeg on
-    push S0
-    call _p24p_write_str
-    call _p24p_write_ln
+    push 5
+    storeg n
 L1:
-    loadg on
-    push 0
-    eq
-    jz L2
-    call _p24p_read_switch
-    push 0
-    eq
-    jz L3
-    call _p24p_led_on
+    loadg n
+    call _p24p_write_int
+    call _p24p_write_ln
+    loadg n
     push 1
-    storeg on
-L3:
-    jmp L1
-L2:
-    push S1
+    sub
+    storeg n
+    loadg n
+    push 0
+    eq
+    jz L1
+    push S0
     call _p24p_write_str
     call _p24p_write_ln
 L0:
     halt
 .end
-.data S0 80,114,101,115,115,32,83,50,32,115,119,105,116,99,104,46,46,46,0
-.data S1 76,69,68,32,111,110,32,98,121,32,115,119,105,116,99,104,0
+.data S0 100,111,110,101,0
 .endmodule
 ; OK
