@@ -6,7 +6,7 @@ begin
   writeln('Press S2 switch...');
   while not on do
   begin
-    if ReadSwitch = 0 then
+    if ReadSwitch = 1 then
     begin
       LedOn;
       on := true

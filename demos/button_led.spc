@@ -46,7 +46,7 @@ L1:
     eq
     jz L2
     call _p24p_read_switch
-    push 0
+    push 1
     eq
     jz L3
     call _p24p_led_on

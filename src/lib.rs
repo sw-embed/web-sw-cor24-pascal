@@ -42,7 +42,8 @@ pub enum AppMode {
 pub enum Msg {
     SelectDemo(usize),
     LinkAndRun,
-    CompileAndRun,
+    Compile,
+    Run,
     Stop,
     Tick,
     CompilerTick,
@@ -83,6 +84,7 @@ pub struct App {
     // Compile mode state
     edit_source: String,
     compiled_spc: String,
+    compiled_source: Option<String>,
     compiler_emu: Option<EmulatorCore>,
     compiler_rx_queue: VecDeque<u8>,
     // Timing
@@ -287,23 +289,27 @@ impl App {
         self.schedule_compiler_tick(ctx);
     }
 
-    fn finish_compilation(&mut self, ctx: &Context<Self>) -> bool {
+    fn finish_compilation(&mut self, _ctx: &Context<Self>) -> bool {
         self.compile_time_ms = js_sys::Date::now() - self.compile_start_ms;
+        self.compiler_emu = None;
 
         // Check if compilation produced an error
         if self.compiled_spc.contains("; COMPILE ERROR") || self.compiled_spc.contains("; ERROR:") {
             self.output = format!("Compilation failed:\n{}", self.compiled_spc);
             self.status = AppStatus::Exited;
-            self.compiler_emu = None;
+            self.compiled_source = None;
             return true;
         }
 
-        // Now link and run the compiled .spc
-        self.status = AppStatus::Linking;
-        self.compiler_emu = None;
+        // Mark this source as the one currently compiled; Run is now enabled.
+        self.compiled_source = Some(self.edit_source.clone());
+        self.status = AppStatus::Ready;
+        true
+    }
 
+    fn link_and_run_spc(&mut self, spc_source: &str, ctx: &Context<Self>) {
         self.load_vm_binary();
-        match self.link_and_assemble_spc(&self.compiled_spc) {
+        match self.link_and_assemble_spc(spc_source) {
             Ok(image) => {
                 self.load_p24_image(&image);
                 self.apply_pending_code_base();
@@ -313,11 +319,10 @@ impl App {
                 self.schedule_tick(ctx);
             }
             Err(e) => {
-                self.output = format!("Link/assemble error: {e}");
+                self.output = format!("Error: {e}");
                 self.status = AppStatus::Exited;
             }
         }
-        true
     }
 }
 
@@ -360,6 +365,7 @@ impl Component for App {
             code_seg_addr: label_addr("code_seg"),
             edit_source: default_source.to_string(),
             compiled_spc: String::new(),
+            compiled_source: None,
             compiler_emu: None,
             compiler_rx_queue: VecDeque::new(),
             compile_start_ms: 0.0,
@@ -390,6 +396,7 @@ impl Component for App {
                     self.compiler_emu = None;
                     self.output.clear();
                     self.compiled_spc.clear();
+                    self.compiled_source = None;
                     self.instruction_count = 0;
                     self.binary_size = 0;
                     self.status = AppStatus::Ready;
@@ -414,6 +421,7 @@ impl Component for App {
                 self.compiler_emu = None;
                 self.output.clear();
                 self.compiled_spc.clear();
+                self.compiled_source = None;
                 self.instruction_count = 0;
                 self.binary_size = 0;
                 self.status = AppStatus::Ready;
@@ -454,6 +462,7 @@ impl Component for App {
                     self.compiler_emu = None;
                     self.output.clear();
                     self.compiled_spc.clear();
+                    self.compiled_source = None;
                     self.instruction_count = 0;
                     self.binary_size = 0;
                     self.status = AppStatus::Ready;
@@ -468,8 +477,14 @@ impl Component for App {
             }
 
             Msg::EditSource(src) => {
+                let changed = src != self.edit_source;
                 self.source_dirty = src != DEMOS[self.selected].pas_source;
                 self.edit_source = src;
+                if changed && self.compiled_source.is_some() {
+                    // Source diverged from what's compiled — invalidate Run, re-enable Compile.
+                    self.compiled_source = None;
+                    return true;
+                }
                 false
             }
 
@@ -482,38 +497,42 @@ impl Component for App {
                 self.halted = false;
                 self.led_on = false;
 
-                self.load_vm_binary();
-
-                let demo = &DEMOS[self.selected];
-                match self.link_and_assemble_spc(demo.spc_source) {
-                    Ok(image) => {
-                        self.load_p24_image(&image);
-                        self.apply_pending_code_base();
-                        self.running = true;
-                        self.status = AppStatus::Running;
-                        self.emulator.resume();
-                        self.schedule_tick(ctx);
-                    }
-                    Err(e) => {
-                        self.output = format!("Error: {e}");
-                        self.status = AppStatus::Exited;
-                    }
-                }
+                let spc = DEMOS[self.selected].spc_source.to_string();
+                self.link_and_run_spc(&spc, ctx);
                 true
             }
 
-            Msg::CompileAndRun => {
+            Msg::Compile => {
                 self.running = false;
                 self._tick_handle = None;
                 self.uart_rx_queue.clear();
                 self.output.clear();
                 self.compiled_spc.clear();
+                self.compiled_source = None;
                 self.instruction_count = 0;
+                self.binary_size = 0;
                 self.halted = false;
                 self.led_on = false;
 
                 let source = self.edit_source.clone();
                 self.start_compiler(&source, ctx);
+                true
+            }
+
+            Msg::Run => {
+                if self.compiled_spc.is_empty() {
+                    return false;
+                }
+                self.running = false;
+                self._tick_handle = None;
+                self.uart_rx_queue.clear();
+                self.output.clear();
+                self.instruction_count = 0;
+                self.halted = false;
+                self.led_on = false;
+
+                let spc = self.compiled_spc.clone();
+                self.link_and_run_spc(&spc, ctx);
                 true
             }
 
@@ -660,6 +679,12 @@ impl Component for App {
         let can_run = !is_busy;
         let is_running = self.running;
         let is_compile_mode = self.mode == AppMode::Compile;
+        let compilation_fresh = self
+            .compiled_source
+            .as_deref()
+            .is_some_and(|s| s == self.edit_source);
+        let compile_enabled = !is_busy && !compilation_fresh;
+        let run_enabled = !is_busy && compilation_fresh && !self.compiled_spc.is_empty();
 
         // Pascal source panel content
         let pascal_panel = if is_compile_mode {
@@ -736,18 +761,29 @@ impl Component for App {
                         </button>
                     </div>
 
-                    if can_run {
-                        if is_compile_mode {
-                            <button class="btn btn-compile"
-                                    onclick={link.callback(|_| Msg::CompileAndRun)}>
-                                {"Compile & Run"}
+                    if is_compile_mode {
+                        <button class="btn btn-compile"
+                                onclick={link.callback(|_| Msg::Compile)}
+                                disabled={!compile_enabled}>
+                            {"Compile"}
+                        </button>
+                        if can_run {
+                            <button class="btn btn-run"
+                                    onclick={link.callback(|_| Msg::Run)}
+                                    disabled={!run_enabled}>
+                                {"Run"}
                             </button>
                         } else {
-                            <button class="btn btn-run"
-                                    onclick={link.callback(|_| Msg::LinkAndRun)}>
-                                {"Link & Run"}
+                            <button class="btn btn-stop"
+                                    onclick={link.callback(|_| Msg::Stop)}>
+                                {"Stop"}
                             </button>
                         }
+                    } else if can_run {
+                        <button class="btn btn-run"
+                                onclick={link.callback(|_| Msg::LinkAndRun)}>
+                            {"Link & Run"}
+                        </button>
                     } else {
                         <button class="btn btn-stop"
                                 onclick={link.callback(|_| Msg::Stop)}>
