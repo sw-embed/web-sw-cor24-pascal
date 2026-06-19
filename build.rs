@@ -7,7 +7,7 @@ fn main() {
     // Pre-assemble pvm.s (COR24 assembly → machine code) at build time.
     // This avoids running the COR24 assembler in WASM at runtime.
     let pvm_source = std::fs::read_to_string("asm/pvm.s").expect("asm/pvm.s");
-    let mut asm = cor24_emulator::Assembler::new();
+    let mut asm = cor24_assembler::Assembler::new();
     let result = asm.assemble(&pvm_source);
     if !result.errors.is_empty() {
         for e in &result.errors {
@@ -70,7 +70,7 @@ fn main() {
     }
     let p24p_asm = String::from_utf8(tc24r_output.stdout).expect("tc24r produced invalid UTF-8");
 
-    let mut p24p_assembler = cor24_emulator::Assembler::new();
+    let mut p24p_assembler = cor24_assembler::Assembler::new();
     let p24p_result = p24p_assembler.assemble(&p24p_asm);
     if !p24p_result.errors.is_empty() {
         for e in &p24p_result.errors {

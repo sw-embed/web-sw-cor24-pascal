@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-16 — Migrate to cor24-assembler
+
+- Migrated build.rs off the removed `cor24_emulator::Assembler` to
+  `cor24_assembler::Assembler` (path dep `../sw-cor24-x-assembler`).
+- Replaced the `cor24-emulator` `[build-dependencies]` entry with
+  `cor24-assembler`; `cor24-emulator` remains a regular dependency for
+  `EmulatorCore`.
+- Build-time-only change (assembler runs in build.rs); no runtime/WASM
+  behavior change expected.
+- Documented the devgroup branching/PR workflow in CLAUDE.md.
+
 ## 2026-03-30 — Fork from web-p24c
 
 - Forked from [softwarewrighter/web-p24c](https://github.com/softwarewrighter/web-p24c)
